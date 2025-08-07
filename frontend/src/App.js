@@ -308,7 +308,7 @@ function App() {
           <div className="next-piece-section">
             <h3>Next Item</h3>
             <div className="next-piece-container">
-              {gameState.nextPiece && renderPiece(gameState.nextPiece)}
+              {gameState.nextPiece && renderPiece(gameState.nextPiece, { x: 0, y: 0 }, '', true)}
             </div>
             <button 
               onClick={getNewPiece}
@@ -318,9 +318,12 @@ function App() {
               Get Piece
             </button>
             {currentPiece && (
-              <button onClick={rotatePiece} className="rotate-btn">
-                Rotate
-              </button>
+              <div className="current-piece-display">
+                <p>Current Piece: {currentPiece.type}</p>
+                <button onClick={rotatePiece} className="rotate-btn">
+                  Rotate
+                </button>
+              </div>
             )}
           </div>
           
