@@ -169,6 +169,7 @@ function App() {
   const handleMouseUp = useCallback((e) => {
     if (!dragState.isDragging || !currentPiece) return;
     
+    e.preventDefault();
     setDragState({ isDragging: false, startX: 0, startY: 0 });
     
     if (gridRef.current) {
@@ -180,6 +181,7 @@ function App() {
       const gridY = Math.floor(y / 40);
       
       if (checkValidPlacement(currentPiece.shape, x, y) && wsRef.current) {
+        console.log('Placing piece at:', { gridX, gridY });
         wsRef.current.send(JSON.stringify({
           type: 'place_piece',
           data: {
@@ -188,6 +190,8 @@ function App() {
             color: currentPiece.color
           }
         }));
+      } else {
+        console.log('Invalid placement attempted');
       }
     }
     
