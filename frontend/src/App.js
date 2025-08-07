@@ -133,11 +133,20 @@ function App() {
   const handleMouseDown = (e) => {
     if (!currentPiece) return;
     
+    e.preventDefault();
     setDragState({
       isDragging: true,
       startX: e.clientX,
       startY: e.clientY
     });
+    
+    // Start with the current piece position
+    if (gridRef.current) {
+      const rect = gridRef.current.getBoundingClientRect();
+      const x = e.clientX - rect.left - 20; // Center the piece on cursor
+      const y = e.clientY - rect.top - 20;
+      setPiecePosition({ x: Math.max(0, x), y: Math.max(0, y) });
+    }
   };
 
   const handleMouseMove = useCallback((e) => {
