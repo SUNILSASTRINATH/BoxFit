@@ -94,10 +94,13 @@ function App() {
 
   const getNewPiece = () => {
     if (gameState.nextPiece) {
+      console.log('Getting new piece:', gameState.nextPiece);
       setCurrentPiece({
         ...gameState.nextPiece,
         id: Date.now()
       });
+    } else {
+      console.log('No next piece available');
     }
   };
 
