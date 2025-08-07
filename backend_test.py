@@ -121,7 +121,7 @@ class BoxFitAPITester:
             player_name = "test-player-place"
             ws_endpoint = f"{self.ws_url}/api/ws/{room_id}/{player_name}"
             
-            async with websockets.connect(ws_endpoint, timeout=10) as websocket:
+            async with websockets.connect(ws_endpoint) as websocket:
                 # Wait for initial game state
                 await asyncio.wait_for(websocket.recv(), timeout=5)
                 
