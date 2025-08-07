@@ -312,7 +312,7 @@ function App() {
         <div className="game-grid-container">
           <div
             ref={gridRef}
-            className="game-grid"
+            className={`game-grid ${dragState.isDragging ? 'dragging' : ''}`}
             onMouseDown={handleMouseDown}
           >
             {renderGrid()}
