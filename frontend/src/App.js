@@ -95,14 +95,17 @@ function App() {
   };
 
   const getNewPiece = () => {
-    if (gameState.nextPiece) {
+    console.log('gameState:', gameState);
+    console.log('gameState.nextPiece:', gameState.nextPiece);
+    
+    if (gameState.nextPiece && gameState.nextPiece.shape) {
       console.log('Getting new piece:', gameState.nextPiece);
       setCurrentPiece({
         ...gameState.nextPiece,
         id: Date.now()
       });
     } else {
-      console.log('No next piece available');
+      console.log('No next piece available or missing shape');
     }
   };
 
