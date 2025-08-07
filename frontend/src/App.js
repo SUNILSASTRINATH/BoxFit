@@ -53,7 +53,12 @@ function App() {
       switch (message.type) {
         case 'game_state':
           console.log('Received game state:', message.data);
-          setGameState(message.data);
+          setGameState({
+            ...message.data,
+            nextPiece: message.data.next_piece, // Fix field name mapping
+            playerName: message.data.player_name,
+            playerColor: message.data.player_color
+          });
           break;
         case 'player_joined':
         case 'player_left':
@@ -64,7 +69,7 @@ function App() {
             ...prev,
             grid: message.data.grid,
             score: message.data.score,
-            nextPiece: message.data.next_piece
+            nextPiece: message.data.next_piece  // Fix field name mapping
           }));
           setCurrentPiece(null);
           break;
