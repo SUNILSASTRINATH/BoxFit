@@ -71,7 +71,7 @@ class BoxFitAPITester:
             
             print(f"Connecting to: {ws_endpoint}")
             
-            async with websockets.connect(ws_endpoint, timeout=10) as websocket:
+            async with websockets.connect(ws_endpoint) as websocket:
                 # Wait for initial game state message
                 message = await asyncio.wait_for(websocket.recv(), timeout=5)
                 data = json.loads(message)
