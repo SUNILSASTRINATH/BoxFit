@@ -48,9 +48,11 @@ function App() {
 
     wsRef.current.onmessage = (event) => {
       const message = JSON.parse(event.data);
+      console.log('Received WebSocket message:', message);
       
       switch (message.type) {
         case 'game_state':
+          console.log('Received game state:', message.data);
           setGameState(message.data);
           break;
         case 'player_joined':
