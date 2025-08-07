@@ -152,13 +152,17 @@ function App() {
   const handleMouseMove = useCallback((e) => {
     if (!dragState.isDragging || !currentPiece || !gridRef.current) return;
     
+    e.preventDefault();
     const rect = gridRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+    const x = e.clientX - rect.left - 20; // Offset to center piece on cursor
+    const y = e.clientY - rect.top - 20;
     
-    setPiecePosition({ x: Math.max(0, x), y: Math.max(0, y) });
+    const clampedX = Math.max(0, Math.min(x, 360)); // Keep within grid bounds
+    const clampedY = Math.max(0, Math.min(y, 360));
     
-    const isValid = checkValidPlacement(currentPiece.shape, x, y);
+    setPiecePosition({ x: clampedX, y: clampedY });
+    
+    const isValid = checkValidPlacement(currentPiece.shape, clampedX, clampedY);
     setIsValidPlacement(isValid);
   }, [dragState.isDragging, currentPiece, checkValidPlacement]);
 
