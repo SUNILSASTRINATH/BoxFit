@@ -154,6 +154,12 @@ body {
   padding: 10px;
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
   cursor: crosshair;
+  transition: border-color 0.3s ease;
+}
+
+.game-grid.dragging {
+  border-color: #4ecdc4;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5), 0 0 20px rgba(78, 205, 196, 0.3);
 }
 
 .grid-cell {
