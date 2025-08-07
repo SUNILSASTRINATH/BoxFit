@@ -1,52 +1,333 @@
-import { useEffect } from "react";
-import "./App.css";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import axios from "axios";
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import './App.css';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
+const WS_URL = BACKEND_URL.replace('https://', 'wss://').replace('http://', 'ws://');
 
-const Home = () => {
-  const helloWorldApi = async () => {
-    try {
-      const response = await axios.get(`${API}/`);
-      console.log(response.data.message);
-    } catch (e) {
-      console.error(e, `errored out requesting / api`);
-    }
-  };
-
-  useEffect(() => {
-    helloWorldApi();
-  }, []);
-
-  return (
-    <div>
-      <header className="App-header">
-        <a
-          className="App-link"
-          href="https://emergent.sh"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <img src="https://avatars.githubusercontent.com/in/1201222?s=120&u=2686cf91179bbafbc7a71bfbc43004cf9ae1acea&v=4" />
-        </a>
-        <p className="mt-5">Building something incredible ~!</p>
-      </header>
-    </div>
-  );
+const TETRIS_PIECES = {
+  I: { shape: [[1, 1, 1, 1]], color: "#00FFFF" },
+  O: { shape: [[1, 1], [1, 1]], color: "#FFFF00" },
+  T: { shape: [[0, 1, 0], [1, 1, 1]], color: "#800080" },
+  L: { shape: [[1, 0, 0], [1, 1, 1]], color: "#FFA500" },
+  J: { shape: [[0, 0, 1], [1, 1, 1]], color: "#0000FF" },
+  S: { shape: [[0, 1, 1], [1, 1, 0]], color: "#00FF00" },
+  Z: { shape: [[1, 1, 0], [0, 1, 1]], color: "#FF0000" }
 };
 
 function App() {
+  const [gameState, setGameState] = useState({
+    grid: Array(10).fill().map(() => Array(10).fill(null)),
+    players: {},
+    score: 0,
+    nextPiece: null,
+    playerName: '',
+    playerColor: ''
+  });
+  
+  const [roomId, setRoomId] = useState('');
+  const [playerName, setPlayerName] = useState('');
+  const [isConnected, setIsConnected] = useState(false);
+  const [currentPiece, setCurrentPiece] = useState(null);
+  const [dragState, setDragState] = useState({ isDragging: false, startX: 0, startY: 0 });
+  const [piecePosition, setPiecePosition] = useState({ x: 0, y: 0 });
+  const [isValidPlacement, setIsValidPlacement] = useState(true);
+  
+  const wsRef = useRef(null);
+  const gridRef = useRef(null);
+
+  const connectToGame = useCallback(() => {
+    if (!roomId || !playerName || wsRef.current) return;
+
+    const wsUrl = `${WS_URL}/api/ws/${roomId}/${playerName}`;
+    wsRef.current = new WebSocket(wsUrl);
+
+    wsRef.current.onopen = () => {
+      setIsConnected(true);
+      console.log('Connected to game');
+    };
+
+    wsRef.current.onmessage = (event) => {
+      const message = JSON.parse(event.data);
+      
+      switch (message.type) {
+        case 'game_state':
+          setGameState(message.data);
+          break;
+        case 'player_joined':
+        case 'player_left':
+          setGameState(prev => ({ ...prev, players: message.data.players }));
+          break;
+        case 'piece_placed':
+          setGameState(prev => ({
+            ...prev,
+            grid: message.data.grid,
+            score: message.data.score,
+            nextPiece: message.data.next_piece
+          }));
+          setCurrentPiece(null);
+          break;
+        case 'piece_rotated':
+          if (currentPiece) {
+            setCurrentPiece(prev => ({ ...prev, shape: message.data.shape }));
+          }
+          break;
+        default:
+          break;
+      }
+    };
+
+    wsRef.current.onclose = () => {
+      setIsConnected(false);
+      wsRef.current = null;
+    };
+
+    wsRef.current.onerror = (error) => {
+      console.error('WebSocket error:', error);
+    };
+  }, [roomId, playerName, WS_URL]);
+
+  const joinGame = () => {
+    if (roomId && playerName) {
+      connectToGame();
+    }
+  };
+
+  const getNewPiece = () => {
+    if (gameState.nextPiece) {
+      setCurrentPiece({
+        ...gameState.nextPiece,
+        id: Date.now()
+      });
+    }
+  };
+
+  const rotatePiece = () => {
+    if (currentPiece && wsRef.current) {
+      wsRef.current.send(JSON.stringify({
+        type: 'rotate_piece',
+        data: { shape: currentPiece.shape }
+      }));
+    }
+  };
+
+  const checkValidPlacement = useCallback((shape, x, y) => {
+    for (let row = 0; row < shape.length; row++) {
+      for (let col = 0; col < shape[row].length; col++) {
+        if (shape[row][col] === 1) {
+          const gridX = Math.floor(x / 40) + col;
+          const gridY = Math.floor(y / 40) + row;
+          
+          if (gridX < 0 || gridX >= 10 || gridY < 0 || gridY >= 10) {
+            return false;
+          }
+          
+          if (gameState.grid[gridY] && gameState.grid[gridY][gridX] !== null) {
+            return false;
+          }
+        }
+      }
+    }
+    return true;
+  }, [gameState.grid]);
+
+  const handleMouseDown = (e) => {
+    if (!currentPiece) return;
+    
+    setDragState({
+      isDragging: true,
+      startX: e.clientX,
+      startY: e.clientY
+    });
+  };
+
+  const handleMouseMove = useCallback((e) => {
+    if (!dragState.isDragging || !currentPiece || !gridRef.current) return;
+    
+    const rect = gridRef.current.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    
+    setPiecePosition({ x: Math.max(0, x), y: Math.max(0, y) });
+    
+    const isValid = checkValidPlacement(currentPiece.shape, x, y);
+    setIsValidPlacement(isValid);
+  }, [dragState.isDragging, currentPiece, checkValidPlacement]);
+
+  const handleMouseUp = useCallback((e) => {
+    if (!dragState.isDragging || !currentPiece) return;
+    
+    setDragState({ isDragging: false, startX: 0, startY: 0 });
+    
+    if (gridRef.current) {
+      const rect = gridRef.current.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      
+      const gridX = Math.floor(x / 40);
+      const gridY = Math.floor(y / 40);
+      
+      if (checkValidPlacement(currentPiece.shape, x, y) && wsRef.current) {
+        wsRef.current.send(JSON.stringify({
+          type: 'place_piece',
+          data: {
+            shape: currentPiece.shape,
+            position: { x: gridX, y: gridY },
+            color: currentPiece.color
+          }
+        }));
+      }
+    }
+    
+    setPiecePosition({ x: 0, y: 0 });
+    setIsValidPlacement(true);
+  }, [dragState.isDragging, currentPiece, checkValidPlacement]);
+
+  useEffect(() => {
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [handleMouseMove, handleMouseUp]);
+
+  const renderGrid = () => {
+    const grid = [];
+    for (let row = 0; row < 10; row++) {
+      for (let col = 0; col < 10; col++) {
+        const cell = gameState.grid[row][col];
+        grid.push(
+          <div
+            key={`${row}-${col}`}
+            className="grid-cell"
+            style={{
+              backgroundColor: cell ? cell.color : 'transparent',
+              borderColor: cell ? '#444' : '#333'
+            }}
+          />
+        );
+      }
+    }
+    return grid;
+  };
+
+  const renderPiece = (piece, position = { x: 0, y: 0 }, className = '') => {
+    if (!piece) return null;
+    
+    const cells = [];
+    piece.shape.forEach((row, rowIndex) => {
+      row.forEach((cell, colIndex) => {
+        if (cell === 1) {
+          cells.push(
+            <div
+              key={`${rowIndex}-${colIndex}`}
+              className={`piece-cell ${className}`}
+              style={{
+                left: position.x + colIndex * 40,
+                top: position.y + rowIndex * 40,
+                backgroundColor: piece.color,
+                opacity: isValidPlacement ? 0.8 : 0.4,
+                borderColor: isValidPlacement ? piece.color : '#ff4444'
+              }}
+            />
+          );
+        }
+      });
+    });
+    return cells;
+  };
+
+  if (!isConnected) {
+    return (
+      <div className="join-screen">
+        <div className="join-form">
+          <h1>BoxFit</h1>
+          <p>Collaborative Packing Game</p>
+          <div className="form-group">
+            <input
+              type="text"
+              placeholder="Room ID"
+              value={roomId}
+              onChange={(e) => setRoomId(e.target.value)}
+            />
+          </div>
+          <div className="form-group">
+            <input
+              type="text"
+              placeholder="Your Name"
+              value={playerName}
+              onChange={(e) => setPlayerName(e.target.value)}
+            />
+          </div>
+          <button onClick={joinGame} disabled={!roomId || !playerName}>
+            Join Game
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="App">
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Home />}>
-            <Route index element={<Home />} />
-          </Route>
-        </Routes>
-      </BrowserRouter>
+    <div className="game-container">
+      <div className="game-header">
+        <h1>BoxFit</h1>
+        <div className="room-info">
+          Room: {roomId} | Player: {playerName}
+        </div>
+      </div>
+      
+      <div className="game-content">
+        <div className="game-grid-container">
+          <div
+            ref={gridRef}
+            className="game-grid"
+            onMouseDown={handleMouseDown}
+          >
+            {renderGrid()}
+            {dragState.isDragging && currentPiece && renderPiece(currentPiece, piecePosition, 'dragging')}
+          </div>
+          <div className="score">Score: {gameState.score}</div>
+        </div>
+        
+        <div className="game-sidebar">
+          <div className="next-piece-section">
+            <h3>Next Item</h3>
+            <div className="next-piece-container">
+              {gameState.nextPiece && renderPiece(gameState.nextPiece)}
+            </div>
+            <button 
+              onClick={getNewPiece}
+              disabled={!!currentPiece}
+              className="get-piece-btn"
+            >
+              Get Piece
+            </button>
+            {currentPiece && (
+              <button onClick={rotatePiece} className="rotate-btn">
+                Rotate
+              </button>
+            )}
+          </div>
+          
+          <div className="players-section">
+            <h3>Players</h3>
+            <div className="players-list">
+              {Object.entries(gameState.players).map(([name, data]) => (
+                <div key={name} className="player-item">
+                  <div 
+                    className="player-color" 
+                    style={{ backgroundColor: data.color }}
+                  />
+                  <span className={`player-name ${!data.connected ? 'disconnected' : ''}`}>
+                    {name}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
