@@ -212,10 +212,22 @@ function App() {
     return grid;
   };
 
-  const renderPiece = (piece, position = { x: 0, y: 0 }, className = '') => {
+  const renderPiece = (piece, position = { x: 0, y: 0 }, className = '', isNextPiece = false) => {
     if (!piece) return null;
     
     const cells = [];
+    
+    // For next piece display, center it in the container
+    let offsetX = position.x;
+    let offsetY = position.y;
+    
+    if (isNextPiece) {
+      const shapeWidth = piece.shape[0] ? piece.shape[0].length : 0;
+      const shapeHeight = piece.shape.length;
+      offsetX = (120 - shapeWidth * 30) / 2; // Center horizontally in 120px container
+      offsetY = (120 - shapeHeight * 30) / 2; // Center vertically in 120px container
+    }
+    
     piece.shape.forEach((row, rowIndex) => {
       row.forEach((cell, colIndex) => {
         if (cell === 1) {
@@ -224,11 +236,13 @@ function App() {
               key={`${rowIndex}-${colIndex}`}
               className={`piece-cell ${className}`}
               style={{
-                left: position.x + colIndex * 40,
-                top: position.y + rowIndex * 40,
+                left: offsetX + colIndex * (isNextPiece ? 30 : 40),
+                top: offsetY + rowIndex * (isNextPiece ? 30 : 40),
+                width: isNextPiece ? '30px' : '40px',
+                height: isNextPiece ? '30px' : '40px',
                 backgroundColor: piece.color,
-                opacity: isValidPlacement ? 0.8 : 0.4,
-                borderColor: isValidPlacement ? piece.color : '#ff4444'
+                opacity: className === 'dragging' ? (isValidPlacement ? 0.8 : 0.4) : 1,
+                borderColor: className === 'dragging' ? (isValidPlacement ? piece.color : '#ff4444') : piece.color
               }}
             />
           );
