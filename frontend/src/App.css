@@ -221,6 +221,22 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
+}
+
+.current-piece-display {
+  margin-top: 10px;
+  padding: 12px;
+  background: rgba(78, 205, 196, 0.1);
+  border-radius: 8px;
+  border: 1px solid rgba(78, 205, 196, 0.3);
+}
+
+.current-piece-display p {
+  margin: 0 0 8px 0;
+  color: #4ecdc4;
+  font-weight: 600;
+  text-align: center;
 }
 
 .get-piece-btn, .rotate-btn {
